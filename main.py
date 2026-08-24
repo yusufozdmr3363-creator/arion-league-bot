@@ -1,3 +1,4 @@
+
 import discord
 from discord.ext import commands
 import random
@@ -8,9 +9,33 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=".", intents=intents)
 
+# AFK olan kullanıcıları tutmak için sözlük
+afk_users = {}
+
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} başarıyla giriş yaptı ve aktif!")
+
+@bot.event
+async def on_message(message):
+    # Botun kendi mesajlarına cevap vermesini engelle (çift mesaj sorununu önler)
+    if message.author.bot:
+        return
+
+    # Etiketlenen biri AFK mı kontrol et
+    if message.mentions:
+        for user in message.mentions:
+            if user.id in afk_users:
+                sebep = afk_users[user.id]
+                await message.channel.send(f"💤 **{user.name}** şu an AFK!\n> **Sebep:** {sebep}")
+
+    # AFK olan kullanıcı mesaj yazarsa AFK modundan çıkar
+    if message.author.id in afk_users:
+        del afk_users[message.author.id]
+        await message.channel.send(f"👋 Hoş geldin {message.author.mention}! AFK modundan çıktın.")
+
+    # Komutların çalışması için bu satır şarttır
+    await bot.process_commands(message)
 
 # ==========================================
 # 1. YARDIM VE TÜM KOMUTLAR MENÜSÜ (.komutlar)
@@ -24,26 +49,20 @@ async def komutlar(ctx):
     )
     
     embed.add_field(
-        name="🏟️ Canlı Maç & Simülasyon",
-        value="• `.maç @EvSahibi @Deplasman` - 90 dakikalık canlı maç başlatır.",
+        name="⚽ Oyun & Kulüp Sistemleri",
+        value="• `.ant` - Antrenman yapma komutu.\n• `.pen` - Penaltı atma komutu.\n• `.kap @Etiket EskiTakım YeniTakım Maaş Sezon Bonservis EkMadde` - Resmi KAP bildirimi.",
         inline=False
     )
     
     embed.add_field(
-        name="⚽ Bireysel Oyunlar & Kulüp Sistemleri",
-        value="• `.pen` - Tek başına penaltı atıp gol arama mini oyunu.\n• `.ant` - Tek başına antrenman yapıp kondisyon kasma komutu.\n• `.kap @Etiket EskiTakım YeniTakım Maaş Sezon Bonservis EkMadde` - Resmi KAP transfer bildirimi.",
+        name="🛠️ Özel & Bilgi Komutları",
+        value="• `.dev` (veya `.dver`) - Botun geliştiricisini gösterir.\n• `.afk [sebep]` - AFK moduna geçer.",
         inline=False
     )
     
     embed.add_field(
-        name="📋 Kadro & Takım Sistemleri",
-        value="• `.kadro @TakımRolü` - Takımın ana kadrosunu listeler.\n• `.yedekler @YedekRolü` - Yedek kulübesindeki oyuncuları gösterir.",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="✉️ Yönetim & Moderasyon",
-        value="• `.dm [mesajın]` - Üyelere toplu duyuru gönderir *(Yönetici)*.\n• `.ban` / `.kick` / `.mute` / `.temizle` - Moderasyon komutları.",
+        name="🔨 Moderasyon Komutları",
+        value="• `.dsil [sayı]` - Belirtilen miktarda mesajı siler.\n• `.k @Kullanıcı [sebep]` - Kullanıcıyı sunucudan atar (Kick).",
         inline=False
     )
     
@@ -77,39 +96,65 @@ async def kap(ctx, member: discord.Member = None, eski_takim: str = None, yeni_t
     await ctx.send(embed=embed)
 
 # ==========================================
-# 3. PENALTI OYUNU SİSTEMİ (.pen)
+# 3. DEV / DVER KOMUTU (.dev & .dver)
 # ==========================================
-@bot.command(name="pen")
-async def penalti(ctx):
-    sonuclar = ["gol", "gol", "gol", "kaleci kurtardı!", "direkten dışarı çıktı!", "üstten auta gitti!"]
-    sonuc = random.choice(sonuclar)
-    
-    if sonuc == "gol":
-        mesaj = f"⚽ **GOL!** Beyaz noktadan harika bir vuruş ve meşin yuvarlak ağlarla buluştu! Tebrikler {ctx.author.mention}! 🎯"
-    else:
-        mesaj = f"❌ **KAÇTI!** Penaltı atışında {sonuc} {ctx.author.mention}, şansını tekrar dene!"
-        
-    await ctx.send(mesaj)
+@bot.command(name="dev", aliases=["dver"])
+async def dev(ctx):
+    await ctx.send("💻 **Bu bot;** Arion League projeleri ve futbol sunucuları için özel olarak geliştirilmiştir!")
 
 # ==========================================
-# 4. ANTRENMAN SİSTEMİ (.ant)
+# 4. AFK SİSTEMİ (.afk)
+# ==========================================
+@bot.command(name="afk")
+async def afk(ctx, *, sebep: str = "Belirtilmemiş"):
+    afk_users[ctx.author.id] = sebep
+    await ctx.send(f"💤 {ctx.author.mention} başarıyla AFK moduna geçti.\n> **Sebep:** {sebep}")
+
+# ==========================================
+# 5. MESAJ SİLME KOMUTU (.dsil)
+# ==========================================
+@bot.command(name="dsil")
+@commands.has_permissions(manage_messages=True)
+async def dsil(ctx, amount: int = 5):
+    if amount < 1:
+        await ctx.send("❌ Lütfen 1'den büyük bir sayı girin!")
+        return
+    await ctx.channel.purge(limit=amount + 1)
+    await ctx.send(f"🧹 Başarıyla **{amount}** adet mesaj silindi!", delete_after=3)
+
+@dsil.error
+async def dsil_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Bu komutu kullanmak için `Mesajları Yönet` yetkisine sahip olmalısın!")
+    elif isinstance(error, commands.BadArgument):
+        await ctx.send("❌ Lütfen geçerli bir sayı gir! Örnek: `.dsil 10`")
+
+# ==========================================
+# 6. KICK KOMUTU (.k)
+# ==========================================
+@bot.command(name="k")
+@commands.has_permissions(kick_members=True)
+async def k(ctx, member: discord.Member, *, sebep: str = "Sebep belirtilmedi"):
+    await member.kick(reason=sebep)
+    await ctx.send(f"🔨 **{member.name}** sunucudan atıldı!\n> **Sebep:** {sebep}")
+
+@k.error
+async def k_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Bu komutu kullanmak için `Üyeleri At` yetkisine sahip olmalısın!")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Lütfen atılacak kişiyi etiketle! Örnek: `.k @Kullanıcı Sebep`")
+
+# ==========================================
+# 7. ANTRENMAN VE PENALTI (.ant & .pen)
 # ==========================================
 @bot.command(name="ant")
 async def antrenman(ctx):
-    kazanc = random.randint(50, 200)
-    await ctx.send(f"🏋️‍♂️ {ctx.author.mention} sahaya indi ve yoğun bir kondisyon antrenmanı gerçekleştirdi!\n> ⚡ Kazanılan Performans / Prim: **+{kazanc} Puan**")
+    await ctx.send(f"🏋️‍♂️ {ctx.author.mention} antrenman yaptı!")
 
-# ==========================================
-# 5. DİĞER TEMEL KOMUTLAR
-# ==========================================
-@bot.command(name="ping")
-async def ping(ctx):
-    await ctx.send(f"Pong! Gecikme süresi: `{round(bot.latency * 1000)}ms`")
-
-@bot.command(name="espri")
-async def espri(ctx):
-    await ctx.send("Geçen sünnetçi tıraşı oldum, kafadan 5 yaş gençleştim! 😄")
+@bot.command(name="pen")
+async def penalti(ctx):
+    await ctx.send(f"⚽ {ctx.author.mention} penaltı kullandı!")
 
 # Botu Çalıştırma
 bot.run(os.getenv("TOKEN"))
-    
