@@ -1,3 +1,5 @@
+
+
 import discord
 from discord.ext import commands
 import random
@@ -164,18 +166,13 @@ async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
         await ctx.send("❌ Botun yetkisi yetersiz!")
         return
 
-    # Komutu kullanan kişiye özel onay mesajı
-    embed_onay = discord.Embed(
-        title="📈 Oyuncu Değeri Artırıldı",
-        color=discord.Color.from_rgb(46, 204, 113)
-    )
-    embed_onay.add_field(name="👤 Oyuncu", value=member.mention, inline=False)
-    embed_onay.add_field(name="📊 Değişim", value=f"Eski: `{eski_nick}`\nYeni: `{yeni_nick}`", inline=False)
-    embed_onay.add_field(name="📝 Sebep", value=sebep, inline=False)
-    embed_onay.set_footer(text=f"İşlemi Yapan: {ctx.author.name}")
-    await ctx.send(embed=embed_onay)
+    # Komut yazılan yerdeki gereksiz mesajı silmeye çalış (varsa)
+    try:
+        await ctx.message.delete()
+    except:
+        pass
 
-    # Güncellenmiş Değer Bildirme Formu (Blok Kutulu Görünüm)
+    # Sadece değer bildirme kanalına tek bir blok mesaj atılır
     deger_mesaji = (
         f"> **__Arion League Değer Bildirme Formu__**\n"
         f"> 👤┇**Oyuncu:** {member.mention}\n"
@@ -190,6 +187,8 @@ async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
     deger_kanali = bot.get_channel(DEGER_KANAL_ID)
     if deger_kanali:
         await deger_kanali.send(deger_mesaji)
+    else:
+        await ctx.send("⚠️ Değer kanalı bulunamadı!")
 
 # ==========================================
 # 6. DEĞER AZALTMA SİSTEMİ (.dsil)
@@ -216,18 +215,12 @@ async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
         await ctx.send("❌ Botun yetkisi yetersiz!")
         return
 
-    # Komutu kullanan kişiye özel onay mesajı
-    embed = discord.Embed(
-        title="📉 Oyuncu Değeri Düşürüldü / Silindi",
-        color=discord.Color.from_rgb(231, 76, 60)
-    )
-    embed.add_field(name="👤 Oyuncu", value=member.mention, inline=False)
-    embed.add_field(name="📊 Değişim", value=f"Eski: `{eski_nick}`\nYeni: `{yeni_nick}`", inline=False)
-    embed.add_field(name="📝 Sebep", value=sebep, inline=False)
-    embed.set_footer(text=f"İşlemi Yapan: {ctx.author.name}")
-    await ctx.send(embed=embed)
+    try:
+        await ctx.message.delete()
+    except:
+        pass
 
-    # Değer Azaltma Formu (Blok Kutulu Görünüm)
+    # Sadece değer bildirme kanalına tek bir blok mesaj atılır
     azaltma_mesaji = (
         f"> **__Arion League Değer Azaltma Formu__**\n"
         f"> 👤┇**Oyuncu:** {member.mention}\n"
@@ -242,6 +235,8 @@ async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
     deger_kanali = bot.get_channel(DEGER_KANAL_ID)
     if deger_kanali:
         await deger_kanali.send(azaltma_mesaji)
+    else:
+        await ctx.send("⚠️ Değer kanalı bulunamadı!")
 
 # ==========================================
 # 7. PARA GÖNDERME SİSTEMİ (.pay @etiket 2M)
@@ -408,4 +403,3 @@ async def penalti(ctx):
 
 # Botu Çalıştırma
 bot.run(os.getenv("TOKEN"))
-            
