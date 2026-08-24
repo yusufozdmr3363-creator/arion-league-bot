@@ -15,8 +15,6 @@ DEGER_KANAL_ID = 1529073718595158027
 
 # AFK olan kullanıcıları tutmak için sözlük
 afk_users = {}
-
-# Çift mesajı önlemek için hafıza
 son_gonderilenler = {}
 
 @bot.event
@@ -28,14 +26,12 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Etiketlenen biri AFK mı kontrol et
     if message.mentions:
         for user in message.mentions:
             if user.id in afk_users:
                 sebep = afk_users[user.id]
                 await message.channel.send(f"💤 **{user.name}** şu an AFK!\n> **Sebep:** {sebep}")
 
-    # AFK olan kullanıcı mesaj yazarsa AFK modundan çıkar
     if message.author.id in afk_users:
         del afk_users[message.author.id]
         await message.channel.send(f"👋 Hoş geldin {message.author.mention}! AFK modundan çıktın.")
@@ -79,9 +75,7 @@ async def kap(ctx, member: discord.Member = None, eski_takim: str = None, yeni_t
 
     try:
         await ctx.message.delete()
-    except discord.Forbidden:
-        pass
-    except discord.HTTPException:
+    except:
         pass
 
     embed = discord.Embed(
@@ -101,7 +95,6 @@ async def kap(ctx, member: discord.Member = None, eski_takim: str = None, yeni_t
     embed.set_footer(text="Arion League")
 
     hedef_kanal = bot.get_channel(KAP_KANAL_ID)
-
     if hedef_kanal:
         await hedef_kanal.send(embed=embed)
     else:
@@ -134,7 +127,7 @@ async def futbolcu_kayit(ctx, member: discord.Member, *, veri: str = None):
     try:
         await member.edit(nick=veri)
     except discord.Forbidden:
-        await ctx.send("❌ Botun yetkisi yetersiz! Kullanıcının rolü botun rolünden üstte olabilir.")
+        await ctx.send("❌ Botun yetkisi yetersiz!")
         return
 
     embed = discord.Embed(
@@ -143,7 +136,6 @@ async def futbolcu_kayit(ctx, member: discord.Member, *, veri: str = None):
         color=discord.Color.from_str("#2ECC71")
     )
     embed.set_footer(text="Arion League")
-    
     await ctx.send(embed=embed)
 
 # ==========================================
@@ -152,11 +144,6 @@ async def futbolcu_kayit(ctx, member: discord.Member, *, veri: str = None):
 @bot.command(name="dver")
 @commands.has_permissions(manage_nicknames=True)
 async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "Sebep belirtilmedi"):
-    mesaj_anahtari = (ctx.author.id, member.id, miktar, sebep)
-    if mesaj_anahtari in son_gonderilenler:
-        return
-    son_gonderilenler[mesaj_anahtari] = True
-
     eski_nick = member.display_name
     match = re.search(r'(\d+)([mM]?)$', eski_nick.strip())
     
@@ -174,8 +161,6 @@ async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
         yeni_str = f"{miktar}M€"
         degisim_str = f"+{miktar}M€"
 
-    tam_kunye = f"{eski_nick}"
-
     try:
         await member.edit(nick=yeni_nick)
     except discord.Forbidden:
@@ -184,7 +169,7 @@ async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
 
     embed = discord.Embed(
         title="✅ İşlem Başarılı",
-        description=f"• **{tam_kunye}** adlı oyuncunun değeri başarıyla güncellendi!\n• **Değişim:** {eski_str} → {yeni_str} ({degisim_str})\n• **Sebep:** {sebep}",
+        description=f"• **{eski_nick}** adlı oyuncunun değeri başarıyla güncellendi!\n• **Değişim:** {eski_str} → {yeni_str} ({degisim_str})\n• **Sebep:** {sebep}",
         color=discord.Color.from_str("#2ECC71")
     )
     embed.set_footer(text="Arion League")
@@ -199,11 +184,6 @@ async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
 @bot.command(name="dsil")
 @commands.has_permissions(manage_nicknames=True)
 async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "Sebep belirtilmedi"):
-    mesaj_anahtari = (ctx.author.id, member.id, -miktar, sebep)
-    if mesaj_anahtari in son_gonderilenler:
-        return
-    son_gonderilenler[mesaj_anahtari] = True
-
     eski_nick = member.display_name
     match = re.search(r'(\d+)([mM]?)$', eski_nick.strip())
     
@@ -221,8 +201,6 @@ async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
         yeni_str = f"-{miktar}M€"
         degisim_str = f"-{miktar}M€"
 
-    tam_kunye = f"{eski_nick}"
-
     try:
         await member.edit(nick=yeni_nick)
     except discord.Forbidden:
@@ -231,7 +209,7 @@ async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
 
     embed = discord.Embed(
         title="✅ İşlem Başarılı",
-        description=f"• **{tam_kunye}** adlı oyuncunun değeri başarıyla güncellendi!\n• **Değişim:** {eski_str} → {yeni_str} ({degisim_str})\n• **Sebep:** {sebep}",
+        description=f"• **{eski_nick}** adlı oyuncunun değeri başarıyla güncellendi!\n• **Değişim:** {eski_str} → {yeni_str} ({degisim_str})\n• **Sebep:** {sebep}",
         color=discord.Color.from_str("#2ECC71")
     )
     embed.set_footer(text="Arion League")
@@ -258,20 +236,18 @@ async def pay(ctx, member: discord.Member, miktar_str: str):
 
     gonderen_match = re.search(r'(\d+)([mM]?)$', gonderen_nick.strip())
     if not gonderen_match or int(gonderen_match.group(1)) < gonderilecek_miktar:
-        await ctx.send("❌ Yetersiz bakiye! İsminin sonundaki miktar göndermek istediğin tutardan az.")
+        await ctx.send("❌ Yetersiz bakiye!")
         return
 
     g_mevcut = int(gonderen_match.group(1))
     g_harf = gonderen_match.group(2)
-    g_yeni_sayi = g_mevcut - gonderilecek_miktar
-    yeni_gonderen_nick = re.sub(r'\d+[mM]?$', f"{g_yeni_sayi}{g_harf}", gonderen_nick)
+    yeni_gonderen_nick = re.sub(r'\d+[mM]?$', f"{g_mevcut - gonderilecek_miktar}{g_harf}", gonderen_nick)
 
     alici_match = re.search(r'(\d+)([mM]?)$', alicim_nick.strip())
     if alici_match:
         a_mevcut = int(alici_match.group(1))
         a_harf = alici_match.group(2)
-        a_yeni_sayi = a_mevcut + gonderilecek_miktar
-        yeni_alici_nick = re.sub(r'\d+[mM]?$', f"{a_yeni_sayi}{a_harf}", alicim_nick)
+        yeni_alici_nick = re.sub(r'\d+[mM]?$', f"{a_mevcut + gonderilecek_miktar}{a_harf}", alicim_nick)
     else:
         yeni_alici_nick = f"{alicim_nick} | {gonderilecek_miktar}M"
 
@@ -300,11 +276,7 @@ async def bal(ctx, member: discord.Member = None):
 
     nick = member.display_name
     match = re.search(r'(\d+)([mM]?)$', nick.strip())
-
-    if match:
-        bakiye = f"{match.group(1)}{match.group(2)}"
-    else:
-        bakiye = "Bakiye bulunamadı"
+    bakiye = f"{match.group(1)}{match.group(2)}" if match else "Bakiye bulunamadı"
 
     embed = discord.Embed(
         title="💳 Bakiye / Künye Bilgisi",
@@ -323,45 +295,24 @@ async def antrenman(ctx):
         title="💪 Antrenman Başarılı!",
         color=discord.Color.from_str("#2ECC71")
     )
-    
-    embed.add_field(
-        name="👤 Oyuncu",
-        value=f"• {ctx.author.mention}",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="📊 İlerleme Durumu",
-        value="• **Mevcut:** 1/5\n• **Kalan:** 4 antrenman\n• **Yüzde:** 10%",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="📈 Gelişim Çubuğu",
-        value="█░░░░░░░░░ `10%`",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="⏳ Sonraki Antrenman",
-        value="• 1 saat sonra",
-        inline=False
-    )
-    
+    embed.add_field(name="👤 Oyuncu", value=f"• {ctx.author.mention}", inline=False)
+    embed.add_field(name="📊 İlerleme Durumu", value="• **Mevcut:** 1/5\n• **Kalan:** 4 antrenman\n• **Yüzde:** 10%", inline=False)
+    embed.add_field(name="📈 Gelişim Çubuğu", value="█░░░░░░░░░ `10%`", inline=False)
+    embed.add_field(name="⏳ Sonraki Antrenman", value="• 1 saat sonra", inline=False)
     embed.set_footer(text="Arion League")
     await ctx.send(embed=embed)
 
 # ==========================================
 # 10. PENALTI DÜELLOSU SİSTEMİ (.pen)
 # ==========================================
-class PenaltiGorusSecim(discord.ui.View):
+class PenaltiView(discord.ui.View):
     def __init__(self, ctx):
         super().__init__(timeout=30)
         self.ctx = ctx
         self.secim = None
 
     @discord.ui.button(label="⚽ Futbolcu (Penaltı At)", style=discord.ButtonStyle.success)
-    async def futbolcu(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def futbolcu_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.ctx.author:
             await interaction.response.send_message("❌ Bu penaltıyı sen kullanamazsın!", ephemeral=True)
             return
@@ -370,7 +321,7 @@ class PenaltiGorusSecim(discord.ui.View):
         await interaction.response.defer()
 
     @discord.ui.button(label="🧤 Kaleci (Penaltı Kurtar)", style=discord.ButtonStyle.primary)
-    async def kaleci(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def kaleci_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.ctx.author:
             await interaction.response.send_message("❌ Bu penaltıya müdahale edemezsin!", ephemeral=True)
             return
@@ -387,13 +338,16 @@ async def penalti(ctx):
     )
     secim_embed.set_footer(text="Arion League")
 
-    view = PenaltiGorusSecim(ctx)
+    view = PenaltiView(ctx)
     mesaj = await ctx.send(embed=secim_embed, view=view)
 
-    timed_out = not await view.wait()
+    timed_out = await view.wait()
     
-    if view.secim is None:
-        await mesaj.edit(content="⏳ Süre bittiği için penaltı iptal edildi.", embed=None, view=None)
+    if timed_out or view.secim is None:
+        try:
+            await mesaj.edit(content="⏳ Süre bittiği için penaltı iptal edildi.", embed=None, view=None)
+        except:
+            pass
         return
 
     yuzde = random.randint(10, 95)
@@ -401,7 +355,6 @@ async def penalti(ctx):
     bos_sayisi = 10 - dolu_sayisi
     cubuk = ("█" * dolu_sayisi) + ("░" * bos_sayisi)
 
-    # 1. FUTBOLCU MODU (Şut Atarken)
     if view.secim == "futbolcu":
         if yuzde >= 75:
             durum_baslik = "⚽ GOL!"
@@ -428,7 +381,6 @@ async def penalti(ctx):
         sonuc_embed.add_field(name="📊 Vuruş Kalitesi", value=f"{cubuk} %{yuzde}", inline=False)
         sonuc_embed.add_field(name="👤 Futbolcu", value=f"• {ctx.author.mention}", inline=False)
 
-    # 2. KALECİ MODU (Özel Metinlerle)
     else:
         if yuzde >= 70:
             durum_baslik = "🧤 İNANILMAZ BİR ŞUT KURTARDIN!"
@@ -456,6 +408,8 @@ async def penalti(ctx):
         sonuc_embed.add_field(name="🧤 Kaleci", value=f"• {ctx.author.mention}", inline=False)
 
     sonuc_embed.set_footer(text="Arion League")
+    
+    # Burada yeni mesaj atmak yerine orijinal soru mesajını güncelliyoruz, böylece çift mesaj atmaz!
     await mesaj.edit(content=None, embed=sonuc_embed, view=None)
 
 # Botu Çalıştırma
