@@ -322,9 +322,33 @@ async def bal(ctx, member: discord.Member = None):
 async def antrenman(ctx):
     embed = discord.Embed(
         title="💪 Antrenman Başarılı!",
-        description=f"• **Oyuncu:** {ctx.author.mention}\n• **İlerleme:** 1/5 (%10)\n• **Gelişim:** █░░░░░░░░░\n• **Sonraki Antrenman:** 1 saat sonra",
         color=discord.Color.from_str("#2ECC71")
     )
+    
+    embed.add_field(
+        name="👤 Oyuncu",
+        value=f"• {ctx.author.mention}",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📊 İlerleme Durumu",
+        value="• **Mevcut:** 1/5\n• **Kalan:** 4 antrenman\n• **Yüzde:** 10%",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📈 Gelişim Çubuğu",
+        value="█░░░░░░░░░ `10%`",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="⏳ Sonraki Antrenman",
+        value="• 1 saat sonra",
+        inline=False
+    )
+    
     embed.set_footer(text="Arion League")
     await ctx.send(embed=embed)
 
@@ -339,20 +363,41 @@ async def penalti(ctx):
     cubuk = ("█" * dolu_sayisi) + ("░" * bos_sayisi)
 
     if yuzde >= 70:
-        durum = "⚽ GOL! Mükemmel bir vuruş ve top ağlarla buluştu!"
+        durum_baslik = "⚽ GOL!"
+        durum_aciklama = "Mükemmel bir vuruş ve top ağlarla buluştu!"
         renk = "#2ECC71"
     elif yuzde >= 40:
-        durum = "🪵 DİREK! Top direkten döndü!"
+        durum_baslik = "🪵 DİREK!"
+        durum_aciklama = "Top direkten döndü! Az kalsın gol oluyordu."
         renk = "#F1C40F"
     else:
-        durum = "❌ KAÇTI / KURTARILDI! Kaleci gole izin vermedi!"
+        durum_baslik = "❌ KAÇTI / KURTARILDI!"
+        durum_aciklama = "Kaleci mükemmel uzandı ve gole izin vermedi!"
         renk = "#E74C3C"
 
     embed = discord.Embed(
         title=f"🥅 Penaltı — {ctx.author.name}",
-        description=f"• **Atan:** {ctx.author.mention}\n• **Durum:** {durum}\n• **Kalite:** {cubuk} %{yuzde}",
         color=discord.Color.from_str(renk)
     )
+    
+    embed.add_field(
+        name=durum_baslik,
+        value=durum_aciklama,
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📊 Vuruş Kalitesi",
+        value=f"{cubuk} %{yuzde}",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="👤 Atan",
+        value=f"• {ctx.author.mention}",
+        inline=False
+    )
+    
     embed.set_footer(text="Arion League")
     await ctx.send(embed=embed)
 
