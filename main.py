@@ -1,335 +1,114 @@
-
-import asyncio
-import json
-import os
-import random
 import discord
 from discord.ext import commands
+import random
+import os
 
+# Botun istemci (client/bot) ayarları (Intents açık)
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
-
 bot = commands.Bot(command_prefix=".", intents=intents)
-
-# --- VERİTABANI İŞLEMLERİ ---
-DB_FILE = "database.json"
-
-
-def load_db():
-  if not os.path.exists(DB_FILE):
-    return {}
-  with open(DB_FILE, "r", encoding="utf-8") as f:
-    try:
-      return json.load(f)
-    except:
-      return {}
-
-
-def save_db(data):
-  with open(DB_FILE, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=4)
-
 
 @bot.event
 async def on_ready():
-  print(f"{bot.user.name} başarıyla giriş yaptı!")
-
+    print(f"{bot.user.name} başarıyla giriş yaptı ve aktif!")
 
 # ==========================================
-# 1. KAYIT SİSTEMİ (.k komutu)
-# Kullanım: .k @etiket Neymar | SLK | 🇧🇷 | 1M
+# 1. YARDIM VE TÜM KOMUTLAR MENÜSÜ (.komutlar)
 # ==========================================
-@bot.command(name="k")
-async def kayit(ctx, member: discord.Member, *, veri: str = None):
-  if not veri:
-    await ctx.send(
-        "❌ Eksik kullanım! Örnek: `.k @etiket Neymar | SLK | 🇧🇷 | 1M`"
+@bot.command(name="komutlar")
+async def komutlar(ctx):
+    embed = discord.Embed(
+        title="🤖 FUTBOL & SUNUCU BOTU - TÜM KOMUTLAR",
+        description="Sunucumuzda kullanılan tüm güncel komutlar ve sistemler aşağıda listelenmiştir:\n________________________________",
+        color=discord.Color.yellow()
     )
-    return
-
-  parts = [p.strip() for p in veri.split("|")]
-  if len(parts) < 4:
-    await ctx.send(
-        "❌ Bilgileri eksik girdiniz! `İsim | Mevki | Ülke | Değer` formatında"
-        " yazın."
+    
+    embed.add_field(
+        name="🏟️ Canlı Maç & Simülasyon",
+        value="• `.maç @EvSahibi @Deplasman` - 90 dakikalık canlı maç başlatır.",
+        inline=False
     )
-    return
-
-  isim, mevki, ulke, deger = parts[0], parts[1], parts[2], parts[3]
-
-  db = load_db()
-  guild_id = str(ctx.guild.id)
-  if guild_id not in db:
-    db[guild_id] = {}
-
-  db[guild_id][str(member.id)] = {
-      "isim": isim,
-      "mevki": mevki,
-      "ulke": ulke,
-      "deger": deger,
-  }
-  save_db(db)
-
-  yeni_isim = f"{isim} | {mevki} | {ulke} | {deger}"
-  try:
-    await member.edit(nick=yeni_isim)
-  except:
-    pass
-
-  await ctx.send(
-      f"✅ Başarıyla kaydedildi! **{member.mention}** -> `{yeni_isim}`"
-  )
-
-
-# ==========================================
-# 2. ARAMA SİSTEMİ (.ara komutu)
-# Kullanım: .ara Neymar
-# ==========================================
-@bot.command(name="ara")
-async def ara(ctx, *, aranan: str = None):
-  if not aranan:
-    await ctx.send("❌ Lütfen aranacak futbolcu adını yazın. Örnek: `.ara Neymar`")
-    return
-
-  db = load_db()
-  guild_id = str(ctx.guild.id)
-
-  if guild_id not in db or not db[guild_id]:
-    await ctx.send("⚠️ Bu sunucuda kayıtlı futbolcu bulunmuyor.")
-    return
-
-  bulunanlar = []
-  for user_id, info in db[guild_id].items():
-    if aranan.lower() in info["isim"].lower():
-      member = ctx.guild.get_member(int(user_id))
-      mention = member.mention if member else "Sunucudan Ayrılmış"
-      nick = (
-          f"{info['isim']} | {info['mevki']} | {info['ulke']} | {info['deger']}"
-      )
-      bulunanlar.append(f"👤 **Kullanıcı:** {mention}\n🏷️ **Bilgi:** `{nick}`")
-
-  if bulunanlar:
-    await ctx.send("\n\n".join(bulunanlar[:5]))
-  else:
-    await ctx.send(f"❌ '{aranan}' adında kayıtlı bir futbolcu bulunamadı.")
-
-
-# ==========================================
-# 3. DEĞER VERME SİSTEMİ (.dver komutu)
-# Kullanım: .dver @etiket 4
-# ==========================================
-@bot.command(name="dver")
-async def deger_ver(ctx, member: discord.Member, miktar: int):
-  db = load_db()
-  guild_id = str(ctx.guild.id)
-  user_id = str(member.id)
-
-  if guild_id not in db or user_id not in db[guild_id]:
-    await ctx.send("❌ Bu kullanıcı sistemde kayıtlı değil.")
-    return
-
-  eski_deger_str = db[guild_id][user_id]["deger"]
-  try:
-    eski_sayi = int(
-        eski_deger_str.upper().replace("M", "").replace("TL", "").strip()
+    
+    embed.add_field(
+        name="⚽ Bireysel Oyunlar & Kulüp Sistemleri",
+        value="• `.pen` - Tek başına penaltı atıp gol arama mini oyunu.\n• `.ant` - Tek başına antrenman yapıp kondisyon kasma komutu.\n• `.kap @Etiket EskiTakım YeniTakım Maaş Sezon Bonservis EkMadde` - Resmi KAP transfer bildirimi.",
+        inline=False
     )
-  except:
-    eski_sayi = 1
-
-  yeni_sayi = eski_sayi + miktar
-  yeni_deger_str = f"{yeni_sayi}M"
-
-  db[guild_id][user_id]["deger"] = yeni_deger_str
-  save_db(db)
-
-  info = db[guild_id][user_id]
-  yeni_isim = (
-      f"{info['isim']} | {info['mevki']} | {info['ulke']} | {info['deger']}"
-  )
-  try:
-    await member.edit(nick=yeni_isim)
-  except:
-    pass
-
-  await ctx.send(
-      f"📈 **Değer Güncellendi!** {member.mention} yeni piyasa değeri:"
-      f" **{yeni_deger_str}**"
-  )
-
+    
+    embed.add_field(
+        name="📋 Kadro & Takım Sistemleri",
+        value="• `.kadro @TakımRolü` - Takımın ana kadrosunu listeler.\n• `.yedekler @YedekRolü` - Yedek kulübesindeki oyuncuları gösterir.",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="✉️ Yönetim & Moderasyon",
+        value="• `.dm [mesajın]` - Üyelere toplu duyuru gönderir *(Yönetici)*.\n• `.ban` / `.kick` / `.mute` / `.temizle` - Moderasyon komutları.",
+        inline=False
+    )
+    
+    embed.set_footer(text="Arion League Bot | Tüm Sistemler Aktif")
+    await ctx.send(embed=embed)
 
 # ==========================================
-# 4. ANTRENMAN SİSTEMİ (.ant komutu)
+# 2. KAP BİLDİRİM SİSTEMİ (.kap)
 # ==========================================
-class AntrenmanButtonView(discord.ui.View):
+@bot.command(name="kap")
+async def kap(ctx, member: discord.Member = None, eski_takim: str = None, yeni_takim: str = None, maas: str = None, sezon: str = None, bonservis: str = None, *, ek_madde: str = "Belirtilmemiş"):
+    if not member or not eski_takim or not yeni_takim or not maas or not sezon or not bonservis:
+        await ctx.send("❌ Eksik bilgi girdiniz!\n> **Kullanım:** `.kap @Etiket EskiTakım YeniTakım Maaş Sezon Bonservis EkMadde`")
+        return
 
-  def __init__(self):
-    super().__init__(timeout=60)
-
-  async def progress_bar(
-      self, interaction: discord.Interaction, ant_adi: str
-  ):
-    await interaction.response.send_message(
-        f"🏋️‍♂️ **{ant_adi}** antrenmanı başlatıldı...\n`█░░░░░░░░░` %10",
-        ephemeral=False,
+    embed = discord.Embed(
+        title="🔔 K.A.P. | KAMUYU AYDINLATMA PLATFORMU BİLDİRİMİ",
+        description="Şirketimiz / Kulübümüz tarafından profesyonel futbolcu transferi hakkında resmi açıklama:\n________________________________",
+        color=discord.Color.yellow()
     )
-    original_message = await interaction.original_response()
+    
+    embed.add_field(name="👤 Futbolcu", value=member.mention, inline=False)
+    embed.add_field(name="🏢 Eski Takımı", value=eski_takim, inline=True)
+    embed.add_field(name="🏟️ Yeni Takımı", value=yeni_takim, inline=True)
+    embed.add_field(name="💶 Maaş / Ücret", value=maas, inline=True)
+    embed.add_field(name="⏳ Sözleşme Süresi", value=sezon, inline=True)
+    embed.add_field(name="💰 Bonservis Bedeli", value=bonservis, inline=True)
+    embed.add_field(name="📝 Özel Şartlar / Ek Madde", value=ek_madde, inline=False)
+    
+    embed.set_footer(text=f"KAP Transfer Sistemi | Bildiren: {ctx.author.name}")
+    await ctx.send(embed=embed)
 
-    adımlar = [
-        ("`██░░░░░░░░`", "%20"),
-        ("`███░░░░░░░`", "%30"),
-        ("`████░░░░░░`", "%40"),
-        ("`█████░░░░░`", "%50"),
-        ("`██████░░░░`", "%60"),
-        ("`███████░░░`", "%70"),
-        ("`████████░░`", "%80"),
-        ("`█████████░`", "%90"),
-        ("`██████████`", "%100 (Tamamlandı! 🎉)"),
-    ]
+# ==========================================
+# 3. PENALTI OYUNU SİSTEMİ (.pen)
+# ==========================================
+@bot.command(name="pen")
+async def penaltı(ctx):
+    sonuclar = ["gol", "gol", "gol", "kaleci kurtardı!", "direkten dışarı çıktı!", "üstten auta gitti!"]
+     sonuc = random.choice(sonuclar)
+    
+    if sonuc == "gol":
+        mesaj = f"⚽ **GOL!** Beyaz noktadan harika bir vuruş ve meşin yuvarlak ağlarla buluştu! Tebrikler {ctx.author.mention}! 🎯"
+    else:
+        mesaj = f"❌ **KAÇTI!** Penaltı atışında {sonuc} {ctx.author.mention}, şansını tekrar dene!"
+        
+    await ctx.send(mesaj)
 
-    for bar, yuzde in adımlar:
-      await asyncio.sleep(0.6)
-      await original_message.edit(
-          content=f"🏋️‍♂️ **{ant_adi}** antrenmanı devam ediyor...\n{bar} {yuzde}"
-      )
-
-  @discord.ui.button(
-      label="Top Sürme", style=discord.ButtonStyle.primary, emoji="⚽"
-  )
-  async def top_surme(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    await self.progress_bar(interaction, "Top Sürme")
-
-  @discord.ui.button(
-      label="Çalım", style=discord.ButtonStyle.success, emoji="⚡"
-  )
-  async def calim(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    await self.progress_bar(interaction, "Çalım")
-
-  @discord.ui.button(
-      label="Fizik", style=discord.ButtonStyle.danger, emoji="💪"
-  )
-  async def fizik(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    await self.progress_bar(interaction, "Fizik")
-
-  @discord.ui.button(
-      label="Şut", style=discord.ButtonStyle.secondary, emoji="🎯"
-  )
-  async def sut(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    await self.progress_bar(interaction, "Şut")
-
-
-class RolSecimView(discord.ui.View):
-
-  def __init__(self):
-    super().__init__(timeout=30)
-
-  @discord.ui.button(
-      label="Kaleci misin?", style=discord.ButtonStyle.secondary, emoji="🧤"
-  )
-  async def kaleci(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    await interaction.response.send_message(
-        "🧤 Kaleci antrenmanları yakında eklenecektir!", ephemeral=True
-    )
-
-  @discord.ui.button(
-      label="Futbolcu Musun?", style=discord.ButtonStyle.primary, emoji="🏃‍♂️"
-  )
-  async def futbolcu(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    view = AntrenmanButtonView()
-    await interaction.response.edit_message(
-        content=(
-            "💪 **Futbolcu seçildi!** Geliştirmek istediğin antrenmanı seç:"
-        ),
-        view=view,
-    )
-
-
+# ==========================================
+# 4. ANTRENMAN SİSTEMİ (.ant)
+# ==========================================
 @bot.command(name="ant")
 async def antrenman(ctx):
-  view = RolSecimView()
-  await ctx.send("⚽ Hangisi olmak istiyorsun?", view=view)
-
+    kazanc = random.randint(50, 200)
+    await ctx.send(f"🏋️‍♂️ {ctx.author.mention} sahaya indi ve yoğun bir kondisyon antrenmanı gerçekleştirdi!\n> ⚡ Kazanılan Performans / Prim: **+{kazanc} Puan**")
 
 # ==========================================
-# 5. PENALTI SİSTEMİ (.pen komutu)
+# 5. DİĞER TEMEL KOMUTLAR
 # ==========================================
-class PenaltiRolSecimView(discord.ui.View):
+@bot.command(name="ping")
+async def ping(ctx):
+    await ctx.send(f"Pong! Gecikme süresi: `{round(bot.latency * 1000)}ms`")
 
-  def __init__(self):
-    super().__init__(timeout=30)
+@bot.command(name="espri")
+async def espri(ctx):
+    await ctx.send("Geçen sünnetçi tıraşı oldum, kafadan 5 yaş gençleştim! 😄")
 
-  @discord.ui.button(
-      label="Kaleci misin?", style=discord.ButtonStyle.blurple, emoji="🧤"
-  )
-  async def kaleci_sec(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    sonuc = random.choice(["gol_yedi", "kurtardi"])
-    if sonuc == "gol_yedi":
-      await interaction.response.edit_message(
-          content=(
-              f"😞 **Gol Yedin!** {interaction.user.mention} rakibin şutunu"
-              " çıkaramadı, üzüntüden yıkıldı..."
-          ),
-          view=None,
-      )
-    else:
-      await interaction.response.edit_message(
-          content=(
-              f"🙌 **Harika Kurtarış!** {interaction.user.mention} topu müthiş"
-              " bir refleksle tuttu ve sevinçten havalara uçtu! 🥳"
-          ),
-          view=None,
-      )
-
-  @discord.ui.button(
-      label="Futbolcu Musun?", style=discord.ButtonStyle.green, emoji="⚽"
-  )
-  async def futbolcu_sec(
-      self, interaction: discord.Interaction, button: discord.ui.Button
-  ):
-    sonuc = random.choice(["gol", "aut", "direk", "kurtaris"])
-    if sonuc == "gol":
-      metin = (
-          f"🎉 **GOL!** {interaction.user.mention} muhteşem bir vuruşla topu"
-          " ağlara gönderdi! 🥅⚽"
-      )
-    elif sonuc == "aut":
-      metin = (
-          f"↗️ **AUT!** {interaction.user.mention} sert vurdu ancak top dışarı"
-          " gitti."
-      )
-    elif sonuc == "direk":
-      metin = (
-          f"💥 **DİREK!** {interaction.user.mention} rakip kaleye çok sert bir"
-          " şut vurdu, top direkten geri döndü!"
-      )
-    else:
-      metin = (
-          f"🧤 **KURTARIŞ!** Kaleci harika bir hamleyle topu çeldi, gol izni"
-          " vermedi."
-      )
-
-    await interaction.response.edit_message(content=metin, view=None)
-
-
-@bot.command(name="pen")
-async def penalti(ctx):
-  view = PenaltiRolSecimView()
-  await ctx.send("⚽ Kaleci misin? Futbolcu musun?", view=view)
-
-
-# Botu Çalıştırma
+# Botu Çalıştırma (Railway Token Değişkeni)
 bot.run(os.getenv("TOKEN"))
