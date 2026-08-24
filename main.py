@@ -1,5 +1,4 @@
 
-
 import discord
 from discord.ext import commands
 import random
@@ -166,13 +165,12 @@ async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
         await ctx.send("❌ Botun yetkisi yetersiz!")
         return
 
-    # Komut yazılan yerdeki gereksiz mesajı silmeye çalış (varsa)
+    # Sadece komut mesajını siliyoruz, ekrana asla 2. bir mesaj atmıyoruz.
     try:
         await ctx.message.delete()
     except:
         pass
 
-    # Sadece değer bildirme kanalına tek bir blok mesaj atılır
     deger_mesaji = (
         f"> **__Arion League Değer Bildirme Formu__**\n"
         f"> 👤┇**Oyuncu:** {member.mention}\n"
@@ -187,8 +185,6 @@ async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
     deger_kanali = bot.get_channel(DEGER_KANAL_ID)
     if deger_kanali:
         await deger_kanali.send(deger_mesaji)
-    else:
-        await ctx.send("⚠️ Değer kanalı bulunamadı!")
 
 # ==========================================
 # 6. DEĞER AZALTMA SİSTEMİ (.dsil)
@@ -220,7 +216,6 @@ async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
     except:
         pass
 
-    # Sadece değer bildirme kanalına tek bir blok mesaj atılır
     azaltma_mesaji = (
         f"> **__Arion League Değer Azaltma Formu__**\n"
         f"> 👤┇**Oyuncu:** {member.mention}\n"
@@ -235,8 +230,6 @@ async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "S
     deger_kanali = bot.get_channel(DEGER_KANAL_ID)
     if deger_kanali:
         await deger_kanali.send(azaltma_mesaji)
-    else:
-        await ctx.send("⚠️ Değer kanalı bulunamadı!")
 
 # ==========================================
 # 7. PARA GÖNDERME SİSTEMİ (.pay @etiket 2M)
