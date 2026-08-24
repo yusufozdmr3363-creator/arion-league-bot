@@ -3,7 +3,7 @@ from discord.ext import commands
 import random
 import os
 
-# Botun istemci (client/bot) ayarları (Intents açık)
+# Botun istemci ayarları
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=".", intents=intents)
@@ -80,9 +80,9 @@ async def kap(ctx, member: discord.Member = None, eski_takim: str = None, yeni_t
 # 3. PENALTI OYUNU SİSTEMİ (.pen)
 # ==========================================
 @bot.command(name="pen")
-async def penaltı(ctx):
+async def penalti(ctx):
     sonuclar = ["gol", "gol", "gol", "kaleci kurtardı!", "direkten dışarı çıktı!", "üstten auta gitti!"]
-     sonuc = random.choice(sonuclar)
+    sonuc = random.choice(sonuclar)
     
     if sonuc == "gol":
         mesaj = f"⚽ **GOL!** Beyaz noktadan harika bir vuruş ve meşin yuvarlak ağlarla buluştu! Tebrikler {ctx.author.mention}! 🎯"
@@ -110,5 +110,6 @@ async def ping(ctx):
 async def espri(ctx):
     await ctx.send("Geçen sünnetçi tıraşı oldum, kafadan 5 yaş gençleştim! 😄")
 
-# Botu Çalıştırma (Railway Token Değişkeni)
+# Botu Çalıştırma
 bot.run(os.getenv("TOKEN"))
+    
