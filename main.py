@@ -10,7 +10,7 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix=".", intents=intents)
 
-# Bildirim ve Kanal Sabit ID'leri
+# Bildirim dan Kanal Sabit ID'leri
 KAP_KANAL_ID = 1529080307737825391
 DEGER_KANAL_ID = 1529073718595158027
 ANTRENMAN_KANAL_ID = 1539313925219291146
@@ -116,7 +116,7 @@ async def komutlar(ctx):
             f"• `.pen` - Penaltı düellosu (Yalnızca <#{PENALTI_KANAL_ID}>).\n"
             f"• `.post [mesaj]` - Sosyal medya gönderisi atmanızı sağlar (Yalnızca {sosyal_kanallar_str}).\n"
             "• `.k @Etiket İsim | Mevki | Ülke | Değer` - Futbolcu kayıt sistemi.\n"
-            "• `.ara [oyuncu adı]` - Oyuncu araması yapar.\n"
+            "• `.ara [oyuncu adı]` - Oyuncu araması yapar (Scout Raporu).\n"
             "• `.mevkiara [mevki]` - Sunucudaki o mevkiye sahip kişileri listeler.\n"
             "• `.dver @Etiket [sayı] [sebep]` - Oyuncunun piyasa değerini artırır.\n"
             "• `.dsil @Etiket [sayı] [sebep]` - Oyuncunun piyasa değerini azaltır.\n"
@@ -141,10 +141,11 @@ async def komutlar(ctx):
     await ctx.send(embed=embed)
 
 # ==========================================
-# 2. POST SİSTEMİ (.post) - Yalnızca Sosyal Medya Kanalları
+# 2. POST SİSTEMİ (.post) - Başlık ve Alan Tasarımı
 # ==========================================
 @bot.command(name="post")
 async def post(ctx, *, mesaj_icerik: str = None):
+    # Kanal kontrolü (Sadece sosyal medya kanallarında çalışır)
     if ctx.channel.id not in SOSYAL_MEDYA_KANALLARI:
         try:
             await ctx.message.delete()
@@ -166,11 +167,13 @@ async def post(ctx, *, mesaj_icerik: str = None):
             pass
         return
 
+    # Komut mesajını temizle
     try:
         await ctx.message.delete()
     except:
         pass
 
+    # İçerik boşsa hata ver
     if not mesaj_icerik:
         embed = discord.Embed(
             title="❌ EKSİK BİLGİ",
@@ -181,18 +184,22 @@ async def post(ctx, *, mesaj_icerik: str = None):
         await ctx.send(embed=embed)
         return
 
+    # Kullanıcının post sayısını hesapla ve artır
     user_id = ctx.author.id
     mevcut_post = user_post_count.get(user_id, 0) + 1
     user_post_count[user_id] = mevcut_post
 
     nickname = ctx.author.display_name
 
-    baslik_metni = f"### {nickname}\n________________________________\n\n{mesaj_icerik}\n\n### Bu kullanıcının {mevcut_post}. postu"
-
+    # Embed tasarımı (Oyuncu adı Title içerisinde, mesaj ve sayaç alt alta)
     embed = discord.Embed(
-        title=baslik_metni,
+        title=f"👤┇Oyuncu: {nickname}",
         color=discord.Color.from_str("#3498DB")
     )
+    
+    embed.add_field(name="Mesajı", value=mesaj_icerik, inline=False)
+    embed.add_field(name="Günün Kaçıncı Postu", value=f"__{mevcut_post}. postu__", inline=False)
+    
     embed.set_footer(text=f"Arion League • Gönderen: {ctx.author.name}")
     
     await ctx.send(embed=embed)
