@@ -1,3 +1,354 @@
+import discord
+from discord.ext import commands
+import random
+import os
+import re
+
+# Botun istemci ayarları
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix=".", intents=intents)
+
+# Bildirim Kanallarının Sabit ID'leri
+KAP_KANAL_ID = 1529080307737825391
+DEGER_KANAL_ID = 1529073718595158027
+
+# Veritabanları (AFK, Bakiye, Antrenman)
+afk_users = {}
+user_balances = {}  # Nakit para (Cüzdan)
+user_ant_count = {} # Antrenman ilerlemesi
+
+@bot.event
+async def on_ready():
+    print(f"{bot.user.name} başarıyla giriş yaptı ve aktif!")
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if message.mentions:
+        for user in message.mentions:
+            if user.id in afk_users:
+                sebep = afk_users[user.id]
+                await message.channel.send(f"💤 **{user.name}** şu an AFK!\n> **Sebep:** {sebep}")
+
+    if message.author.id in afk_users:
+        del afk_users[message.author.id]
+        await message.channel.send(f"👋 Hoş geldin {message.author.mention}! AFK modundan çıktın.")
+
+    await bot.process_commands(message)
+
+# ==========================================
+# 1. YARDIM MENÜSÜ (.komutlar)
+# ==========================================
+@bot.command(name="komutlar")
+async def komutlar(ctx):
+    embed = discord.Embed(
+        title="🤖 ARION LEAGUE — TÜM KOMUTLAR LİSTESİ",
+        description="Sunucumuzdaki tüm güncel komutlar aşağıdadır:\n________________________________",
+        color=discord.Color.from_str("#FFD700")
+    )
+    
+    embed.add_field(
+        name="⚽ Oyun, Kulüp & Ekonomi Sistemleri",
+        value="• `.ant` - Antrenman yapma komutu (Yüzde artırır).\n• `.pen` - Penaltı düellosu (Futbolcu/Kaleci seçimi).\n• `.k @Etiket İsim | Mevki | Ülke | Değer` - Futbolcu kayıt sistemi.\n• `.dver @Etiket [sayı] [sebep]` - Oyuncunun piyasa değerini artırır.\n• `.dsil @Etiket [sayı] [sebep]` - Oyuncunun piyasa değerini azaltır.\n• `.pay @Etiket [miktar]M` - Belirtilen oyuncuya nakit para gönderir.\n• `.bal [@Etiket]` - Oyuncunun piyasa değerini ve nakit parasını gösterir.\n• `.kap @Etiket EskiTakım YeniTakım Maaş Sezon Bonservis EkMadde` - Resmi KAP bildirimi.",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🛠️ Özel Sistemler",
+        value="• `.afk [sebep]` - AFK moduna geçer.",
+        inline=False
+    )
+    
+    embed.set_footer(text="Arion League")
+    await ctx.send(embed=embed)
+
+# ==========================================
+# 2. KAP BİLDİRİMİ (.kap)
+# ==========================================
+@bot.command(name="kap")
+async def kap(ctx, member: discord.Member = None, eski_takim: str = None, yeni_takim: str = None, maas: str = None, sezon: str = None, bonservis: str = None, *, ek_madde: str = "Belirtilmemiş"):
+    if not member or not eski_takim or not yeni_takim or not maas or not sezon or not bonservis:
+        await ctx.send("❌ Eksik bilgi girdiniz!\n> **Kullanım:** `.kap @Etiket EskiTakım YeniTakım Maaş Sezon Bonservis EkMadde`")
+        return
+
+    try:
+        await ctx.message.delete()
+    except:
+        pass
+
+    embed = discord.Embed(
+        title="🔔 K.A.P. | KAMUYU AYDINLATMA PLATFORMU BİLDİRİMİ",
+        description="Profesyonel futbolcu transferi hakkında resmi açıklama:\n________________________________",
+        color=discord.Color.from_str("#FFD700")
+    )
+    
+    embed.add_field(name="👤 Futbolcu", value=member.mention, inline=False)
+    embed.add_field(name="🏢 Eski Takımı", value=eski_takim, inline=True)
+    embed.add_field(name="🏟️ Yeni Takımı", value=yeni_takim, inline=True)
+    embed.add_field(name="💶 Maaş", value=maas, inline=True)
+    embed.add_field(name="⏳ Süre", value=sezon, inline=True)
+    embed.add_field(name="💰 Bonservis", value=bonservis, inline=True)
+    embed.add_field(name="📝 Özel Şartlar", value=ek_madde, inline=False)
+    
+    embed.set_footer(text="Arion League")
+
+    hedef_kanal = bot.get_channel(KAP_KANAL_ID)
+    if hedef_kanal:
+        await hedef_kanal.send(embed=embed)
+    else:
+        await ctx.send("⚠️ KAP kanalı bulunamadı:", embed=embed)
+
+# ==========================================
+# 3. AFK SİSTEMİ (.afk)
+# ==========================================
+@bot.command(name="afk")
+async def afk(ctx, *, sebep: str = "Belirtilmemiş"):
+    afk_users[ctx.author.id] = sebep
+    embed = discord.Embed(
+        title="💤 AFK Modu",
+        description=f"{ctx.author.mention} başarıyla AFK moduna geçti.\n> **Sebep:** {sebep}",
+        color=discord.Color.from_str("#3498DB")
+    )
+    embed.set_footer(text="Arion League")
+    await ctx.send(embed=embed)
+
+# ==========================================
+# 4. OYUNCU KAYIT SİSTEMİ (.k)
+# ==========================================
+@bot.command(name="k")
+@commands.has_permissions(manage_nicknames=True)
+async def futbolcu_kayit(ctx, member: discord.Member, *, veri: str = None):
+    if not veri:
+        await ctx.send("❌ Eksik bilgi girdiniz!\n> **Kullanım:** `.k @etiket Oyuncu ismi | Mevkisi | Ülkesi | 1M`")
+        return
+
+    try:
+        await member.edit(nick=veri)
+    except discord.Forbidden:
+        await ctx.send("❌ Botun yetkisi yetersiz!")
+        return
+
+    embed = discord.Embed(
+        title="✅ İşlem Başarılı",
+        description=f"• **{member.mention}** adlı oyuncunun künyesi oluşturuldu ve ismi güncellendi!\n• **Yeni Künye:** `{veri}`",
+        color=discord.Color.from_str("#2ECC71")
+    )
+    embed.set_footer(text="Arion League")
+    await ctx.send(embed=embed)
+
+# ==========================================
+# 5. PİYASA DEĞERİ ARTIRMA SİSTEMİ (.dver)
+# ==========================================
+@bot.command(name="dver")
+@commands.has_permissions(manage_nicknames=True)
+async def deger_ver(ctx, member: discord.Member, miktar: int, *, sebep: str = "Sebep belirtilmedi"):
+    try:
+        await ctx.message.delete()
+    except:
+        pass
+
+    eski_nick = member.display_name
+    match = re.search(r'(\d+)([mM]?)$', eski_nick.strip())
+    
+    if match:
+        eski_sayi = int(match.group(1))
+        ek_harf = match.group(2)
+        yeni_sayi = eski_sayi + miktar
+        yeni_nick = re.sub(r'\d+[mM]?$', f"{yeni_sayi}{ek_harf}", eski_nick)
+        eski_str = f"{eski_sayi}{ek_harf}€"
+        yeni_str = f"{yeni_sayi}{ek_harf}€"
+        degisim_str = f"+{miktar}{ek_harf}€"
+    else:
+        yeni_nick = f"{eski_nick} | {miktar}M"
+        eski_str = "Bilinmiyor"
+        yeni_str = f"{miktar}M€"
+        degisim_str = f"+{miktar}M€"
+
+    try:
+        await member.edit(nick=yeni_nick)
+    except discord.Forbidden:
+        await ctx.send("❌ Botun yetkisi yetersiz!")
+        return
+
+    # Komutun yazıldığı kanala giden onay embedi
+    embed = discord.Embed(
+        title="✅ İşlem Başarılı",
+        description=f"• **{eski_nick}** adlı oyuncunun piyasa değeri başarıyla güncellendi!\n• **Değişim:** {eski_str} → {yeni_str} ({degisim_str})\n• **Sebep:** {sebep}",
+        color=discord.Color.from_str("#2ECC71")
+    )
+    embed.add_field(name="🛡️ İşlemi Yapan Yetkili", value=ctx.author.mention, inline=True)
+    embed.add_field(name="📺 İşlem Yapılan Kanal", value=ctx.channel.mention, inline=True)
+    embed.set_footer(text="Arion League")
+
+    await ctx.send(embed=embed)
+
+    # Değer bildirim kanalına gidecek olan Title (Başlık) içindeki form embedi
+    deger_kanali = bot.get_channel(DEGER_KANAL_ID)
+    if deger_kanali:
+        form_embed = discord.Embed(
+            title="Arion League Değer Bildirme Formu",
+            color=discord.Color.from_str("#2ECC71")
+        )
+        form_embed.add_field(name="👤 Oyuncu", value=member.mention, inline=False)
+        form_embed.add_field(name="❔ Sebep", value=sebep, inline=False)
+        form_embed.add_field(name="📈 Kaçtan Kaça", value=f"{eski_str} → {yeni_str} (+{miktar}M)", inline=False)
+        form_embed.add_field(name="🛠️ Değeri Veren Yetkili", value=ctx.author.mention, inline=False)
+        form_embed.set_footer(text="Arion League")
+        
+        await deger_kanali.send(embed=form_embed)
+
+# ==========================================
+# 6. PİYASA DEĞERİ AZALTMA SİSTEMİ (.dsil)
+# ==========================================
+@bot.command(name="dsil")
+@commands.has_permissions(manage_nicknames=True)
+async def deger_sil(ctx, member: discord.Member, miktar: int, *, sebep: str = "Sebep belirtilmedi"):
+    try:
+        await ctx.message.delete()
+    except:
+        pass
+
+    eski_nick = member.display_name
+    match = re.search(r'(\d+)([mM]?)$', eski_nick.strip())
+    
+    if match:
+        eski_sayi = int(match.group(1))
+        ek_harf = match.group(2)
+        yeni_sayi = max(0, eski_sayi - miktar)
+        yeni_nick = re.sub(r'\d+[mM]?$', f"{yeni_sayi}{ek_harf}", eski_nick)
+        eski_str = f"{eski_sayi}{ek_harf}€"
+        yeni_str = f"{yeni_sayi}{ek_harf}€"
+        degisim_str = f"-{miktar}{ek_harf}€"
+    else:
+        yeni_nick = eski_nick
+        eski_str = "Bilinmiyor"
+        yeni_str = f"-{miktar}M€"
+        degisim_str = f"-{miktar}M€"
+
+    try:
+        await member.edit(nick=yeni_nick)
+    except discord.Forbidden:
+        await ctx.send("❌ Botun yetkisi yetersiz!")
+        return
+
+    # Komutun yazıldığı kanala giden onay embedi
+    embed = discord.Embed(
+        title="✅ İşlem Başarılı",
+        description=f"• **{eski_nick}** adlı oyuncunun piyasa değeri başarıyla güncellendi!\n• **Değişim:** {eski_str} → {yeni_str} ({degisim_str})\n• **Sebep:** {sebep}",
+        color=discord.Color.from_str("#E74C3C")
+    )
+    embed.add_field(name="🛡️ İşlemi Yapan Yetkili", value=ctx.author.mention, inline=True)
+    embed.add_field(name="📺 İşlem Yapılan Kanal", value=ctx.channel.mention, inline=True)
+    embed.set_footer(text="Arion League")
+
+    await ctx.send(embed=embed)
+
+    # Değer bildirim kanalına gidecek olan Title (Başlık) içindeki form embedi
+    deger_kanali = bot.get_channel(DEGER_KANAL_ID)
+    if deger_kanali:
+        form_embed = discord.Embed(
+            title="Arion League Değer Bildirme Formu",
+            color=discord.Color.from_str("#E74C3C")
+        )
+        form_embed.add_field(name="👤 Oyuncu", value=member.mention, inline=False)
+        form_embed.add_field(name="❔ Sebep", value=sebep, inline=False)
+        form_embed.add_field(name="📈 Kaçtan Kaça", value=f"{eski_str} → {yeni_str} (-{miktar}M)", inline=False)
+        form_embed.add_field(name="🛠️ Değeri Silen Yetkili", value=ctx.author.mention, inline=False)
+        form_embed.set_footer(text="Arion League")
+        
+        await deger_kanali.send(embed=form_embed)
+
+# ==========================================
+# 7. NAKİT PARA GÖNDERME SİSTEMİ (.pay)
+# ==========================================
+@bot.command(name="pay")
+async def pay(ctx, member: discord.Member, miktar_str: str):
+    match_miktar = re.search(r'(\d+)', miktar_str)
+    if not match_miktar:
+        await ctx.send("❌ Geçersiz miktar! Örnek kullanım: `.pay @etiket 2M`")
+        return
+    
+    gonderilecek_miktar = int(match_miktar.group(1))
+    gonderen = ctx.author
+
+    is_owner = ctx.guild and gonderen == ctx.guild.owner
+
+    if not is_owner:
+        gonderen_bakiye = user_balances.get(gonderen.id, 0)
+        if gonderen_bakiye < gonderilecek_miktar:
+            await ctx.send(f"❌ Yetersiz bakiye! Mevcut nakit paranız: **{gonderen_bakiye}M€**")
+            return
+        user_balances[gonderen.id] = gonderen_bakiye - gonderilecek_miktar
+
+    alici_bakiye = user_balances.get(member.id, 0)
+    user_balances[member.id] = alici_bakiye + gonderilecek_miktar
+
+    gonderen_gosterge = "Sınırsız (Kurucu)" if is_owner else f"{user_balances.get(gonderen.id, 0)}M€"
+
+    embed = discord.Embed(
+        title="✅ Para Transferi Başarılı",
+        description=f"• **Gönderen:** {gonderen.mention} (Kalan: {gonderen_gosterge})\n• **Alıcı:** {member.mention} (Yeni: {user_balances[member.id]}M€)\n• **Gönderilen Tutar:** {gonderilecek_miktar}M€",
+        color=discord.Color.from_str("#2ECC71")
+    )
+    embed.set_footer(text="Arion League")
+    await ctx.send(embed=embed)
+
+# ==========================================
+# 8. BAKİYE / KÜNYE BİLGİSİ (.bal)
+# ==========================================
+@bot.command(name="bal")
+async def bal(ctx, member: discord.Member = None):
+    if member is None:
+        member = ctx.author
+
+    nick = member.display_name
+    match = re.search(r'(\d+)([mM]?)$', nick.strip())
+    piyasa_degeri = f"{match.group(1)}{match.group(2)}€" if match else "Bulunamadı"
+
+    nakit_para = user_balances.get(member.id, 0)
+
+    embed = discord.Embed(
+        title="💳 Bakiye",
+        description=f"• **Oyuncu:** {member.mention}\n• **Künye:** `{nick}`\n• **Piyasa Değeri:** `{piyasa_degeri}`\n• **Nakit Para (Cüzdan):** `{nakit_para}M€`",
+        color=discord.Color.from_str("#3498DB")
+    )
+    embed.set_footer(text="Arion League")
+    await ctx.send(embed=embed)
+
+# ==========================================
+# 9. ANTRENMAN SİSTEMİ (.ant)
+# ==========================================
+@bot.command(name="ant")
+async def antrenman(ctx):
+    user_id = ctx.author.id
+    
+    mevcut_sayi = user_ant_count.get(user_id, 0)
+    mevcut_sayi += 1
+    if mevcut_sayi > 5:
+        mevcut_sayi = 1
+        
+    user_ant_count[user_id] = mevcut_sayi
+    
+    yuzde = mevcut_sayi * 20
+    dolu_sayisi = mevcut_sayi * 2
+    bos_sayisi = 10 - dolu_sayisi
+    cubuk = ("█" * dolu_sayisi) + ("░" * bos_sayisi)
+    kalan = 5 - mevcut_sayi
+
+    embed = discord.Embed(
+        title="💪 Antrenman Başarılı!",
+        color=discord.Color.from_str("#2ECC71")
+    )
+    embed.add_field(name="👤 Oyuncu", value=f"• {ctx.author.mention}", inline=False)
+    embed.add_field(name="📊 İlerleme Durumu", value=f"• **Mevcut:** {mevcut_sayi}/5\n• **Kalan:** {kalan} antrenman\n• **Yüzde:** %{yuzde}", inline=False)
+    embed.add_field(name="📈 Gelişim Çubuğu", value=f"{cubuk} `%{yuzde}`", inline=False)
+    embed.add_field(name="⏳ Sonraki Antrenman", value="• 1 saat sonra", inline=False)
+    embed.set_footer(text="Arion League")
+    await ctx.send(embed=embed)
+
 # ==========================================
 # 10. PENALTI DÜELLOSU SİSTEMİ (.pen)
 # ==========================================
@@ -104,6 +455,7 @@ async def penalti(ctx):
         sonuc_embed.add_field(name="🧤 Kaleci", value=f"• {ctx.author.mention}", inline=False)
 
     sonuc_embed.set_footer(text="Arion League")
-    
-    # 📌 En kritik nokta burası: Yeni mesaj atmak yerine eski mesajı güncelliyoruz.
     await mesaj.edit(content=None, embed=sonuc_embed, view=None)
+
+# Botu Çalıştırma
+bot.run(os.getenv("TOKEN"))
