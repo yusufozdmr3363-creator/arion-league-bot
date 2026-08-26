@@ -10,7 +10,7 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix=".", intents=intents)
 
-# Bildirim dan Kanal Sabit ID'leri
+# Bildirim ve Kanal Sabit ID'leri
 KAP_KANAL_ID = 1529080307737825391
 DEGER_KANAL_ID = 1529073718595158027
 ANTRENMAN_KANAL_ID = 1539313925219291146
@@ -24,7 +24,7 @@ SOSYAL_MEDYA_KANALLARI = [
     1529077633965363320   # Facebook Kanalı
 ]
 
-# Veritabanları (AFK, Bakiye, Antrenman, Post Sayacı)
+# Veritabanları (AFK, Bakiye, Antrenman, Post Sayaçları)
 afk_users = {}
 user_balances = {}  # Nakit para (Cüzdan)
 user_ant_count = {} # Antrenman ilerlemesi
@@ -35,7 +35,7 @@ async def on_ready():
     print(f"{bot.user.name} başarıyla giriş yaptı ve aktif!")
 
 # ==========================================
-# 0. YENİ ÜYE KARŞILAMA SİSTEMİ (Hoş Geldin)
+# 0. YENİ ÜYE KARŞILAMA SİSTEMİ
 # ==========================================
 @bot.event
 async def on_member_join(member):
@@ -43,18 +43,11 @@ async def on_member_join(member):
     if not hedef_kanal:
         return
 
-    toplam_uye = member.guild.member_count
+    sunucu_kisi_sayisi = member.guild.member_count
 
     embed = discord.Embed(
-        title="🌟 ARION LEAGUE AİLESİNE HOŞ GELDİN! 🌟",
-        description=(
-            f"Hey {member.mention}, futbolun kalbinin attığı yere, **Arion League** sunucusuna hoş geldin!\n\n"
-            f"🎯 Seninle birlikte kocaman ailemiz **{toplam_uye}** kişiye ulaştı!\n\n"
-            "> 📌 **İlk Adımlar:**\n"
-            "> • Kuralları okumayı unutma.\n"
-            "> • Yetkililerden kayıt olmayı veya künyeni almayı unutma.\n"
-            "> • Transfer ve piyasa piyasasında yerini al!"
-        ),
+        title=f"Arion League Ailesine Hoş geldin {member.mention} Seninle Birlikte Sunucudaki {sunucu_kisi_sayisi}. kişi olduk",
+        description="• **Durum:** Sunucuya yeni katıldı!\n• **Bilgilendirme:** Lütfen yetkililerden kayıt olmayı unutma.",
         color=discord.Color.from_str("#FFD700")
     )
     
@@ -63,9 +56,9 @@ async def on_member_join(member):
     else:
         embed.set_thumbnail(url=member.default_avatar.url)
         
-    embed.set_footer(text="Arion League • İyi Eğlenceler Dileriz!")
+    embed.set_footer(text="Arion League")
     
-    await hedef_kanal.send(content=f"Hoş geldin {member.mention}! 🎉", embed=embed)
+    await hedef_kanal.send(content=f"{member.mention}", embed=embed)
 
 @bot.event
 async def on_message(message):
@@ -116,7 +109,7 @@ async def komutlar(ctx):
             f"• `.pen` - Penaltı düellosu (Yalnızca <#{PENALTI_KANAL_ID}>).\n"
             f"• `.post [mesaj]` - Sosyal medya gönderisi atmanızı sağlar (Yalnızca {sosyal_kanallar_str}).\n"
             "• `.k @Etiket İsim | Mevki | Ülke | Değer` - Futbolcu kayıt sistemi.\n"
-            "• `.ara [oyuncu adı]` - Oyuncu araması yapar (Scout Raporu).\n"
+            "• `.ara [oyuncu adı]` - Yazılan futbolcuyu gösterir.\n"
             "• `.mevkiara [mevki]` - Sunucudaki o mevkiye sahip kişileri listeler.\n"
             "• `.dver @Etiket [sayı] [sebep]` - Oyuncunun piyasa değerini artırır.\n"
             "• `.dsil @Etiket [sayı] [sebep]` - Oyuncunun piyasa değerini azaltır.\n"
@@ -132,7 +125,8 @@ async def komutlar(ctx):
         value=(
             "• `.afk [sebep]` - AFK moduna geçer.\n"
             "• `.lock [#kanal]` - Kanalı mesaj gönderimine kapatır.\n"
-            "• `.unlock [#kanal]` - Kanalın kilidini açar."
+            "• `.unlock [#kanal]` - Kanalın kilidini açar.\n"
+            "• `.dm @Etiket [mesaj]` - Belirtilen kişiye başlıklı özel mesaj (DM) gönderir."
         ),
         inline=False
     )
@@ -141,11 +135,10 @@ async def komutlar(ctx):
     await ctx.send(embed=embed)
 
 # ==========================================
-# 2. POST SİSTEMİ (.post) - Başlık ve Alan Tasarımı
+# 2. POST SİSTEMİ (.post)
 # ==========================================
 @bot.command(name="post")
 async def post(ctx, *, mesaj_icerik: str = None):
-    # Kanal kontrolü (Sadece sosyal medya kanallarında çalışır)
     if ctx.channel.id not in SOSYAL_MEDYA_KANALLARI:
         try:
             await ctx.message.delete()
@@ -167,13 +160,11 @@ async def post(ctx, *, mesaj_icerik: str = None):
             pass
         return
 
-    # Komut mesajını temizle
     try:
         await ctx.message.delete()
     except:
         pass
 
-    # İçerik boşsa hata ver
     if not mesaj_icerik:
         embed = discord.Embed(
             title="❌ EKSİK BİLGİ",
@@ -184,14 +175,12 @@ async def post(ctx, *, mesaj_icerik: str = None):
         await ctx.send(embed=embed)
         return
 
-    # Kullanıcının post sayısını hesapla ve artır
     user_id = ctx.author.id
     mevcut_post = user_post_count.get(user_id, 0) + 1
     user_post_count[user_id] = mevcut_post
 
     nickname = ctx.author.display_name
 
-    # Embed tasarımı (Oyuncu adı Title içerisinde, mesaj ve sayaç alt alta)
     embed = discord.Embed(
         title=f"👤┇Oyuncu: {nickname}",
         color=discord.Color.from_str("#3498DB")
@@ -243,14 +232,6 @@ async def kap(ctx, member: discord.Member = None, eski_takim: str = None, yeni_t
     hedef_kanal = bot.get_channel(KAP_KANAL_ID)
     if hedef_kanal:
         await hedef_kanal.send(embed=embed)
-    else:
-        hata_embed = discord.Embed(
-            title="⚠️ HATA",
-            description="KAP kanalı sistemde bulunamadı!",
-            color=discord.Color.from_str("#E74C3C")
-        )
-        hata_embed.set_footer(text="Arion League")
-        await ctx.send(hata_embed)
 
 # ==========================================
 # 4. AFK SİSTEMİ (.afk)
@@ -267,33 +248,26 @@ async def afk(ctx, *, sebep: str = "Belirtilmemiş"):
     await ctx.send(embed=embed)
 
 # ==========================================
-# 5. OYUNCU ARAMA SİSTEMİ (.ara)
+# 5. OYUNCU GÖSTERME SİSTEMİ (.ara) — GÜNCELLENDİ
 # ==========================================
 @bot.command(name="ara")
 async def oyuncu_ara(ctx, *, aranan_isim: str = None):
     if not aranan_isim:
         embed = discord.Embed(
             title="❌ EKSİK BİLGİ",
-            description="Aramak istediğiniz oyuncunun adını yazmalısınız!\n> **Kullanım:** `.Ara [Oyuncu Adı]`",
+            description="Aramak istediğiniz futbolcunun adını yazmalısınız!\n> **Kullanım:** `.ara [Futbolcu Adı]`",
             color=discord.Color.from_str("#E74C3C")
         )
         embed.set_footer(text="Arion League")
         await ctx.send(embed=embed)
         return
 
-    ornek_mevkiler = ["Forvet", "Merkez Orta Saha", "Stoper", "Sol Kanat", "Sağ Kanat", "Kaleci"]
-    rastgele_deger = random.randint(5, 45)
-    rastgele_mevki = random.choice(ornek_mevkiler)
-    
     embed = discord.Embed(
-        title=f"🔍 OYUNCU RAPORU — {aranan_isim.upper()}",
-        description=f"Gözlemcilerimiz **{aranan_isim}** için raporu tamamladı:\n________________________________",
+        title=f"⚽ FUTBOLCU BİLGİSİ",
+        description=f"• **Aranan Oyuncu:** **{aranan_isim}**",
         color=discord.Color.from_str("#3498DB")
     )
-    embed.add_field(name="👤 Oyuncu adı", value=aranan_isim, inline=True)
-    embed.add_field(name="📍 Mevki", value=rastgele_mevki, inline=True)
-    embed.add_field(name="💰 Piyasa değeri", value=f"{rastgele_deger}M€", inline=True)
-    embed.set_footer(text="Arion League Scout Ekibi")
+    embed.set_footer(text="Arion League")
     
     await ctx.send(embed=embed)
 
@@ -684,7 +658,59 @@ async def unlock(ctx, kanal: discord.TextChannel = None):
     await ctx.send(embed=embed)
 
 # ==========================================
-# 13. ANTRENMAN SİSTEMİ (.ant)
+# 13. ÖZEL MESAJ (DM) GÖNDERME SİSTEMİ (.dm)
+# ==========================================
+@bot.command(name="dm")
+@commands.has_permissions(manage_messages=True)
+async def dm_gonder(ctx, member: discord.Member, *, mesaj: str = None):
+    if not mesaj:
+        embed = discord.Embed(
+            title="❌ EKSİK BİLGİ",
+            description="Kullanıcıya göndermek istediğiniz mesajı yazmalısınız!\n> **Kullanım:** `.dm @Etiket [Mesajınız]`",
+            color=discord.Color.from_str("#E74C3C")
+        )
+        embed.set_footer(text="Arion League")
+        await ctx.send(embed=embed)
+        return
+
+    try:
+        await ctx.message.delete()
+    except:
+        pass
+
+    try:
+        embed = discord.Embed(
+            title="📩 ARION LEAGUE — YETKİLİ BİLDİRİMİ",
+            description=f"{mesaj}",
+            color=discord.Color.from_str("#3498DB")
+        )
+        embed.set_footer(text=f"Arion League • Gönderen Yetkili: {ctx.author.name}")
+        await member.send(embed=embed)
+
+        basarili_embed = discord.Embed(
+            title="✅ DM GÖNDERİLDİ",
+            description=f"{member.mention} adlı kullanıcıya özel mesajı başarıyla gönderildi.",
+            color=discord.Color.from_str("#2ECC71")
+        )
+        basarili_embed.set_footer(text="Arion League")
+        temp_msg = await ctx.send(embed=basarili_embed)
+        await discord.utils.sleep_until(discord.utils.utcnow() + discord.timedelta(seconds=4))
+        try:
+            await temp_msg.delete()
+        except:
+            pass
+
+    except discord.Forbidden:
+        hata_embed = discord.Embed(
+            title="❌ HATA",
+            description=f"{member.mention} adlı kullanıcının özel mesajları (DM) kapalı olduğu için mesaj gönderilemedi.",
+            color=discord.Color.from_str("#E74C3C")
+        )
+        hata_embed.set_footer(text="Arion League")
+        await ctx.send(hata_embed)
+
+# ==========================================
+# 14. ANTRENMAN SİSTEMİ (.ant)
 # ==========================================
 @bot.command(name="ant")
 async def antrenman(ctx):
@@ -725,7 +751,7 @@ async def antrenman(ctx):
     await ctx.send(embed=embed)
 
 # ==========================================
-# 14. PENALTI DÜELLOSU SİSTEMİ (.pen)
+# 15. PENALTI DÜELLOSU SİSTEMİ (.pen)
 # ==========================================
 class PenaltiView(discord.ui.View):
     def __init__(self, ctx):
